@@ -25,6 +25,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Check if email already exists
         db_user = db.query(User).filter(User.email == user.email).first()
+        print("db user from register controller : ", db_user)
         if db_user:
             logger.warning(f"Registration attempt with already registered email: {user.email}")
             raise HTTPException(
@@ -34,10 +35,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
         # Hash password and create user
         hashed_password = get_password_hash(user.password)
+        
         db_user = User(
             email=user.email,
             full_name=user.full_name,
-            hashed_password=hashed_password
+            password=hashed_password
         )
         db.add(db_user)
         db.commit()

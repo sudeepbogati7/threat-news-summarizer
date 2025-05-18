@@ -30,7 +30,7 @@ def get_user(db: Session, email: str):
 
 def authenticate_user(db: Session, email: str, password: str):
     user = get_user(db, email)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not verify_password(password, user.password):
         return False
     return user
 

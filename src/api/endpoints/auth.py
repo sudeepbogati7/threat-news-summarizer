@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from src.database.db import get_db
-from src.schemas.user import UserCreate, UserResponse, Token
+from src.schemas.user import UserCreate, UserLogin, UserResponse, Token
 from src.core.security import get_password_hash, authenticate_user, create_access_token
 from src.models.user import User
 from src.utils.exceptions import DatabaseError, InvalidInputError
@@ -70,17 +70,19 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="An unexpected error occurred"
         )
 
+
+
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login(user: UserLogin, db: Session = Depends(get_db)):
     """
-    Authenticate user and return a JWT token.
-    Returns a JSON response with token details and user info.
+    Authenticate user with email and password via JSON payload.
+    Returns a JSON response with JWT token and user info.
     """
     try:
         # Authenticate user
-        user = authenticate_user(db, form_data.email, form_data.password)
-        if not user:
-            logger.warning(f"Failed login attempt for email: {form_data.email}")
+        db_user = authenticate_user(db, user.email, user.password)
+        if not db_user:
+            logger.warning(f"Failed login attempt for email: {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -88,7 +90,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             )
 
         # Generate JWT token
-        access_token = create_access_token(data={"sub": user.email})
+        access_token = create_access_token(data={"sub": db_user.email})
         logger.info(f"User logged in successfully: {user.email}")
         return {
             "status": "success",
@@ -97,13 +99,16 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
                 "access_token": access_token,
                 "token_type": "bearer",
                 "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "full_name": user.full_name
+                    "id": db_user.id,
+                    "email": db_user.email,
+                    "full_name": db_user.full_name
                 }
             }
         }
 
+    except ValidationError as e:
+        logger.error(f"Validation error during login: {str(e)}")
+        raise InvalidInputError(detail=str(e))
     except SQLAlchemyError as e:
         logger.error(f"Database error during login: {str(e)}")
         raise DatabaseError(detail="Failed to login due to database error")

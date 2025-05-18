@@ -15,6 +15,14 @@ class UserCreate(BaseModel):
         description="Password must be at least 8 characters long"
     )
 
+
+class UserLogin(BaseModel):
+    email: EmailStr = Field(..., description="User's email address")
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="Password must be at least 8 characters long"
+    )
 class UserResponse(BaseModel):
     status: str
     message: str

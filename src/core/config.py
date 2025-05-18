@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = ""
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     OPENAI_API_KEY: str = ""
+    HUGGINGFACE_API_TOKEN: str
 
     class Config:
         env_file = ".env"

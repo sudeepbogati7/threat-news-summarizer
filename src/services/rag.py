@@ -1,19 +1,30 @@
 from langchain_community.document_loaders import JSONLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings, HuggingFaceEndpoint
 from langchain.chains import RetrievalQA
 from src.core.config import settings
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 qa_chain = None
 
+# Custom RetrievalQA to allow arbitrary types for callback handlers
+class CustomRetrievalQA(RetrievalQA):
+    class Config:
+        arbitrary_types_allowed = True
+
 def load_and_process_articles(file_path: str = "data/articles.json"):
     global qa_chain
     try:
+        logger.info(f"Attempting to load articles from {file_path}")
+        if not os.path.exists(file_path):
+            logger.error(f"Articles file not found: {file_path}")
+            raise FileNotFoundError(f"Articles file not found: {file_path}")
+
         # Load JSON articles with specific fields
         loader = JSONLoader(
             file_path=file_path,
@@ -28,19 +39,34 @@ def load_and_process_articles(file_path: str = "data/articles.json"):
             }
         )
         documents = loader.load()
+        logger.info(f"Loaded {len(documents)} documents from {file_path}")
 
         # Split documents
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(documents)
+        logger.info(f"Split documents into {len(splits)} chunks")
 
-        # Create vector store
-        embeddings = OpenAIEmbeddings(api_key=settings.OPENAI_API_KEY)
+        # Create vector store with Hugging Face Inference API
+        if not settings.HUGGINGFACE_API_TOKEN:
+            logger.error("HUGGINGFACE_API_TOKEN is not set in environment")
+            raise ValueError("HUGGINGFACE_API_TOKEN is not set")
+
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            huggingfacehub_api_token=settings.HUGGINGFACE_API_TOKEN
+        )
         vector_store = FAISS.from_documents(splits, embeddings)
+        logger.info("Vector store created successfully with all-MiniLM-L6-v2 via Inference API")
 
-        # Set up RAG chain
-        llm = ChatOpenAI(model="gpt-3.5-turbo", api_key=settings.OPENAI_API_KEY)
+        # Set up RAG chain with Hugging Face Inference API
+        llm = HuggingFaceEndpoint(
+            repo_id="mistralai/Mixtral-8x7B-Instruct-v0.1",
+            huggingfacehub_api_token=settings.HUGGINGFACE_API_TOKEN,
+            max_new_tokens=512,
+            temperature=0.7
+        )
         retriever = vector_store.as_retriever(search_kwargs={"k": 3})
-        qa_chain = RetrievalQA.from_chain_type(
+        qa_chain = CustomRetrievalQA.from_chain_type(
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
@@ -49,6 +75,7 @@ def load_and_process_articles(file_path: str = "data/articles.json"):
         logger.info("RAG pipeline initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize RAG pipeline: {str(e)}")
+        qa_chain = None
         raise
 
 def get_qa_chain():

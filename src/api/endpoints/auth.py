@@ -19,7 +19,7 @@ router = APIRouter()
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     """
-    Register a new user with email and password.
+    Register a new user with full name, email, and password.
     Returns a JSON response with user details.
     """
     try:
@@ -34,7 +34,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
         # Hash password and create user
         hashed_password = get_password_hash(user.password)
-        db_user = User(email=user.email, hashed_password=hashed_password)
+        db_user = User(
+            email=user.email,
+            full_name=user.full_name,
+            hashed_password=hashed_password
+        )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
@@ -43,7 +47,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         return {
             "status": "success",
             "message": "User registered successfully",
-            "data": {"email": db_user.email, "id": db_user.id}
+            "data": {
+                "id": db_user.id,
+                "email": db_user.email,
+                "full_name": db_user.full_name
+            }
         }
 
     except ValidationError as e:
@@ -64,13 +72,13 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """
     Authenticate user and return a JWT token.
-    Returns a JSON response with token details.
+    Returns a JSON response with token details and user info.
     """
     try:
         # Authenticate user
-        user = authenticate_user(db, form_data.username, form_data.password)
+        user = authenticate_user(db, form_data.email, form_data.password)
         if not user:
-            logger.warning(f"Failed login attempt for email: {form_data.username}")
+            logger.warning(f"Failed login attempt for email: {form_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -85,7 +93,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             "message": "Login successful",
             "data": {
                 "access_token": access_token,
-                "token_type": "bearer"
+                "token_type": "bearer",
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "full_name": user.full_name
+                }
             }
         }
 

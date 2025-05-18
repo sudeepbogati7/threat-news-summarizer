@@ -1,55 +1,49 @@
 from fastapi import FastAPI
-from services.news_fetcher import fetch_articles_from_endpoint
 from src.api.routers import api_router
-from src.database.db import Base, engine
-from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import logging
 from apscheduler.triggers.cron import CronTrigger
+from src.services.news_fetcher import fetch_articles_from_endpoint
+import logging
+from fastapi.middleware.cors import CORSMiddleware
 
-
-# Scheduler setup
-scheduler = AsyncIOScheduler(timezone="Asia/Kathmandu")
+app = FastAPI(title="News Article Summarizer API")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Include API routers
+app.include_router(api_router, prefix="/v1")
+
+# Scheduler setup
+scheduler = AsyncIOScheduler(timezone="Asia/Kathmandu")
+
 origins = [
     "http://localhost",
     "http://localhost:3000",
     "https://yourdomain.com",
-    "*" 
+    "*"
 ]
 
-app = FastAPI(title="News Article Summarizer API")
-
-# Add CORSMiddleware to the application
+# Add CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # List of allowed origins
-    allow_credentials=True,  # Allow cookies and credentials
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-# Create database tables
-Base.metadata.create_all(bind=engine)
-
-# Include API routers
-app.include_router(api_router, prefix="/v1")
-
 
 @app.on_event("startup")
 async def startup_event():
     try:
         logger.info("Starting scheduler for daily news update")
-        # Schedule fetch_articles_from_endpoint to run daily at 2:00 AM Nepal Time
         scheduler.add_job(
-            fetch_articles_from_endpoint,
-            trigger=CronTrigger(hour=2, minute=0, timezone="Asia/Kathmandu"),
-            args=[None],  # Pass None for file; fetch_articles_from_endpoint will handle data source
+            func=fetch_articles_from_endpoint,
+            trigger=CronTrigger(hour=23, minute=41, timezone="Asia/Kathmandu"),
             id="daily_news_update",
-            replace_existing=True
+            replace_existing=True,
+            misfire_grace_time=60  # Allow 60 seconds for missed jobs
         )
         scheduler.start()
         logger.info("Scheduler started successfully")
@@ -59,7 +53,9 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down scheduler")
-    scheduler.shutdown()
+    if scheduler.running:
+        scheduler.shutdown()
+        logger.info("Scheduler shut down successfully")
 
 @app.get("/")
 async def root():

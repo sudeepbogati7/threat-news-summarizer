@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+import httpx
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from src.database.db import get_db
 from src.schemas.news import ArticleResponse, QueryRequest, QueryResponse
@@ -96,6 +98,7 @@ async def fetch_articles(file: UploadFile = File(...), db: Session = Depends(get
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process articles: {str(e)}")
 
+
 @router.post("/chat", response_model=QueryResponse)
 # @limiter.limit("5/minute")
 async def chat(request: QueryRequest, user=Depends(get_current_user)):
@@ -125,3 +128,68 @@ async def chat(request: QueryRequest, user=Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Unexpected error during chat query for user {user.email}: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process query: {str(e)}")
+
+
+
+
+
+# Query parameters model
+class NewsQuery(BaseModel):
+    q: str = "data-leak"
+    sortBy: str = "publishedAt"
+    apiKey: str = "e45179448f144edcb12a75674c74e6bf"
+@router.get("/articles", response_model=ArticleResponse)
+async def fetch_news_articles(query: NewsQuery = Depends()):
+    """
+    Fetch news articles from NewsAPI with given query parameters.
+    Defaults: q=data-leak, sortBy=publishedAt, apiKey=provided.
+    """
+    try:
+        # Construct NewsAPI URL
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": query.q,
+            "sortBy": query.sortBy,
+            "apiKey": query.apiKey,
+        }
+
+        # Make async HTTP request
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()  # Raise exception for 4xx/5xx status codes
+            data = response.json()
+
+        # Validate response
+        if data.get("status") != "ok":
+            logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=data.get("message", "Failed to fetch news articles")
+            )
+
+        logger.info(f"Successfully fetched news articles for query: {query.q}")
+        return ArticleResponse(
+            status="success",
+            message="News articles fetched successfully",
+            data=data.get("articles", [])
+        )
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"NewsAPI HTTP error: {str(e)}")
+        return ArticleResponse(
+            status="error",
+            message=f"Failed to fetch news: {str(e)}",
+            data=None
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Network error during NewsAPI request: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to connect to NewsAPI"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during news fetch: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred"
+        )

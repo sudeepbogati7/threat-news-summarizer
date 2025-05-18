@@ -6,6 +6,8 @@ from src.core.security import get_current_user
 from src.services.rag import query_rag, get_qa_chain
 from src.services.news_fetcher import process_articles
 from src.models.news import Article
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import os
 import json
 import logging
@@ -13,6 +15,9 @@ from src.utils.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# Initialize limiter
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter()
 
@@ -69,10 +74,11 @@ async def fetch_articles(file: UploadFile = File(...), db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to process articles")
 
 @router.post("/chat", response_model=QueryResponse)
+@limiter.limit("5/minute")
 async def chat(request: QueryRequest, user=Depends(get_current_user)):
     """
     Query news articles via chatbot for authenticated users.
-    Returns summarized or relevant information.
+    Returns summarized or relevant information. Limited to 5 requests per minute.
     """
     try:
         qa_chain = get_qa_chain()

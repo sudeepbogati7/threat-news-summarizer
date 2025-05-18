@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from src.database.db import get_db
 from src.schemas.user import UserCreate, UserLogin, UserResponse, Token
-from src.core.security import get_password_hash, authenticate_user, create_access_token
+from src.core.security import get_current_user, get_password_hash, authenticate_user, create_access_token
 from src.models.user import User
 from src.utils.exceptions import DatabaseError, InvalidInputError
 import logging
@@ -118,3 +118,15 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred"
         )
+    
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(user=Depends(get_current_user)):
+    return {
+        "status": "success",
+        "message": "User details retrieved",
+        "data": {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name
+        }
+    }

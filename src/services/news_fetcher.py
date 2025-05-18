@@ -10,12 +10,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 async def fetch_articles_from_endpoint():
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get("YOUR_NEWS_ENDPOINT_URL")  # Replace with your endpoint
+            response = await client.get("https://newsapi.org/v2/everything?q=data leak&sortBy=publishedAt&apiKey=e45179448f144edcb12a75674c74e6bf")  # Replace with your endpoint
             response.raise_for_status()
             articles = response.json()
             os.makedirs("data", exist_ok=True)
             with open("data/articles.json", "w") as f:
-                json.dump(articles, f)
+                json.dump(articles.articles, f)
             load_and_process_articles()
             logger.info("Articles fetched from endpoint and processed successfully")
     except httpx.HTTPError as e:

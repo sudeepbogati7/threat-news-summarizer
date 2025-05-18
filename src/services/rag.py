@@ -46,21 +46,20 @@ def load_and_process_articles(file_path: str = "data/articles.json"):
         splits = text_splitter.split_documents(documents)
         logger.info(f"Split documents into {len(splits)} chunks")
 
-        # Create vector store with Hugging Face Inference API
+        # Set Hugging Face API token in environment
         if not settings.HUGGINGFACE_API_TOKEN:
             logger.error("HUGGINGFACE_API_TOKEN is not set in environment")
             raise ValueError("HUGGINGFACE_API_TOKEN is not set")
+        os.environ["HUGGINGFACEHUB_API_TOKEN"] = settings.HUGGINGFACE_API_TOKEN
 
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            huggingfacehub_api_token=settings.HUGGINGFACE_API_TOKEN
-        )
+        # Create vector store with Hugging Face Inference API
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         vector_store = FAISS.from_documents(splits, embeddings)
         logger.info("Vector store created successfully with all-MiniLM-L6-v2 via Inference API")
 
         # Set up RAG chain with Hugging Face Inference API
         llm = HuggingFaceEndpoint(
-            repo_id="mistralai/Mixtral-8x7B-Instruct-v0.1",
+            model="mistralai/Mixtral-8x7B-Instruct-v0.1",
             huggingfacehub_api_token=settings.HUGGINGFACE_API_TOKEN,
             max_new_tokens=512,
             temperature=0.7

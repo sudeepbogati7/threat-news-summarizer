@@ -1,0 +1,8 @@
+**************** Realtime Threat News Summarizer ****************************
+
+-- > Core Features
+User Registration/Login: Users can register and log in to access the chatbot. Authentication uses JWT tokens.
+News Fetching Endpoint: Fetches and stores recent news articles (using your existing endpoint or a mock dataset).
+Chatbot Endpoint: Allows authenticated users to query news articles using RAG for summaries or answers.
+RAG Pipeline: Processes articles with LangChain (loading, splitting, embedding, retrieval) for accurate responses.
+Database: Stores user credentials and article metadata (using SQLite for simplicity, aligning with your prior database experience).

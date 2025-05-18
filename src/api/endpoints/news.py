@@ -25,7 +25,10 @@ router = APIRouter()
 async def fetch_articles(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a JSON file with news articles and process them for RAG.
-    Stores article metadata in the database.
+    Stores article metadata in
+     the database.
+    
+    
     """
     try:
         if not file.filename.endswith(".json"):

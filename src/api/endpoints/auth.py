@@ -78,9 +78,11 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
             detail="An unexpected error occurred",
         )
     
-    
 @router.post("/login", response_model=ApiResponse)
 async def login(user: UserLogin, db: Session = Depends(get_db)):
+    """
+    Authenticate a user and return a JWT token with user details.
+    """
     try:
         db_user = authenticate_user(db, user.email, user.password)
         if not db_user:
@@ -144,7 +146,6 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred"
         )
-    
 
 
 @router.get("/me", response_model=ApiResponse)

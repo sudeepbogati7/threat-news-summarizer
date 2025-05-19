@@ -16,7 +16,7 @@ import logging
 from src.utils.exceptions import DatabaseError
 from dateutil.parser import parse as parse_date
 from datetime import datetime
-
+from typing import List, Optional, Dict, Any
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
@@ -132,32 +132,61 @@ async def chat(request: QueryRequest, user=Depends(get_current_user)):
 
 
 
+class Source(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
 
-# Query parameters model
+# Define the Article model to match the structure of each article in the NewsAPI response
+class Article(BaseModel):
+    source: Optional[Source] = None
+    author: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    url: Optional[str] = None
+    urlToImage: Optional[str] = None
+    publishedAt: Optional[str] = None
+    content: Optional[str] = None
+
+# Define the ArticleResponse model to match the NewsAPI response structure
+class ArticleResponse(BaseModel):
+    status: str
+    message: str
+    data: Optional[List[Article]] = None  # Data is a list of Article objects
+
+# Define the NewsQuery model (unchanged)
+# Updated NewsQuery model: make q optional
 class NewsQuery(BaseModel):
-    q: str = "data-leak"
+    q: Optional[str] = None  # Changed to optional to allow missing q
     sortBy: str = "publishedAt"
     apiKey: str = "e45179448f144edcb12a75674c74e6bf"
+
 @router.get("/articles", response_model=ArticleResponse)
 async def fetch_news_articles(query: NewsQuery = Depends()):
     """
     Fetch news articles from NewsAPI with given query parameters.
-    Defaults: q=data-leak, sortBy=publishedAt, apiKey=provided.
+    If no query is provided, fetch all available articles.
+    Defaults: sortBy=publishedAt, apiKey=provided.
     """
     try:
         # Construct NewsAPI URL
         url = "https://newsapi.org/v2/everything"
         params = {
-            "q": query.q,
             "sortBy": query.sortBy,
             "apiKey": query.apiKey,
         }
+        # Add query parameter only if provided; otherwise, use a wildcard query
+        if query.q:
+            params["q"] = query.q
+        else:
+            params["q"] = "cyber threats"  # Wildcard query to fetch all articles
 
         # Make async HTTP request
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
             response.raise_for_status()  # Raise exception for 4xx/5xx status codes
             data = response.json()
+            logger.info(f"NewsAPI request: {url}, params: {params}")
+            logger.debug(f"Raw response data: {data}")
 
         # Validate response
         if data.get("status") != "ok":
@@ -167,7 +196,7 @@ async def fetch_news_articles(query: NewsQuery = Depends()):
                 detail=data.get("message", "Failed to fetch news articles")
             )
 
-        logger.info(f"Successfully fetched news articles for query: {query.q}")
+        logger.info(f"Successfully fetched news articles for query: {query.q or 'all articles'}")
         return ArticleResponse(
             status="success",
             message="News articles fetched successfully",

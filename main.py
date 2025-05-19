@@ -40,10 +40,10 @@ async def startup_event():
         logger.info("Starting scheduler for daily news update")
         scheduler.add_job(
             func=fetch_articles_from_endpoint,
-            trigger=CronTrigger(hour=23, minute=41, timezone="Asia/Kathmandu"),
+            trigger=CronTrigger(hour=12, minute=36, timezone="Asia/Kathmandu"),
             id="daily_news_update",
             replace_existing=True,
-            misfire_grace_time=60  # Allow 60 seconds for missed jobs
+            misfire_grace_time=60 
         )
         scheduler.start()
         logger.info("Scheduler started successfully")

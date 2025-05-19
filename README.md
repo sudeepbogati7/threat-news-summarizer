@@ -7,3 +7,23 @@
 3. RAG
 4. NEXTjs
 
+
+### Application preview : 
+
+### Register
+![Register](/images/register.png)
+
+### Chat 1
+![Chat 1](/images/chat1.png)
+
+### Chat 2
+![Chat 2](/images/chat2.png)
+
+### Chat 3
+![Chat 3](/images/chat3.png)
+
+### Homepage
+![Homepage](/images/homepage.png)
+
+### News
+![News](/images/news.png)

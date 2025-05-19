@@ -10,6 +10,9 @@
 
 ### Application preview : 
 
+### Homepage
+![Homepage](/images/homepage.png)
+
 ### Register
 ![Register](/images/register.png)
 
@@ -22,8 +25,6 @@
 ### Chat 3
 ![Chat 3](/images/chat3.png)
 
-### Homepage
-![Homepage](/images/homepage.png)
 
 ### News
 ![News](/images/news.png)

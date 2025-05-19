@@ -82,10 +82,37 @@ def get_qa_chain():
 
 def query_rag(qa_chain, query: str):
     try:
+        # Define casual queries that don't require RAG processing
+        casual_queries = {"hi", "hello", "hey", "how are you", "greetings"}
+        query_lower = query.lower().strip()
+
+        # Check if the query is casual
+        if query_lower in casual_queries:
+            logger.info(f"Casual query detected: {query}")
+            return {
+                "answer": f"Hello! How can I assist you with news articles today?",
+                "sources": []  # Return empty sources for casual queries
+            }
+
+        # Process query through RAG pipeline
         result = qa_chain({"query": query})
-        answer = result["result"]
-        sources = [doc.metadata.get("url", "") for doc in result["source_documents"]]
-        return {"answer": answer, "sources": sources}
+        answer = result["result"].strip()
+        sources = [doc.metadata.get("url", "") for doc in result["source_documents"] if doc.metadata.get("url")]
+
+        # Optional: Check for empty or irrelevant answer
+        if not answer or answer.lower() in ["i don't know", "no relevant information found"]:
+            logger.info(f"No relevant answer found for query: {query}")
+            return {
+                "answer": "I couldn't find relevant information for your query. Please try a different question.",
+                "sources": []
+            }
+
+        logger.info(f"RAG query processed successfully for: {query}")
+        return {
+            "answer": answer,
+            "sources": sources
+        }
+
     except Exception as e:
         logger.error(f"Error processing RAG query: {str(e)}")
         raise

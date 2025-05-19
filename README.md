@@ -30,4 +30,4 @@
 ![News](/images/news.png)
 
 
-` Will deply soon ....`
+> **Note:** This project will be deployed soon with public access. Stay tuned!
